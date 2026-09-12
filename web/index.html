@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT4 · Nhập liệu & Báo cáo kiểm tra thuế</title>
+<style>
+  :root{--blue:#1a73e8;--green:#188038;--bg:#f5f7fb;--line:#dfe3eb;--muted:#5f6b7a;}
+  *{box-sizing:border-box;font-family:'Segoe UI',Roboto,Arial,sans-serif;}
+  body{margin:0;background:var(--bg);color:#1f2733;font-size:15px;line-height:1.5;}
+  header{background:var(--blue);color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  header h1{font-size:19px;margin:0;font-weight:600;}
+  header .who{font-size:14.5px;opacity:.95;}
+  header a,header button.link{color:#fff;text-decoration:none;background:rgba(255,255,255,.18);padding:8px 14px;border-radius:6px;font-size:14.5px;border:none;cursor:pointer;}
+  .wrap{max-width:1220px;margin:16px auto;padding:0 14px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .card h2{font-size:16.5px;margin:0 0 12px;color:var(--blue);border-bottom:2px solid var(--line);padding-bottom:6px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+  label{display:block;font-size:14.5px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-weight:600;}
+  input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:6px;font-size:15px;text-transform:uppercase;background:#fff;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
+  .paste-box{background:#fff8e1;border:1px dashed #f0a500;padding:12px;border-radius:8px;}
+  .paste-box textarea{min-height:70px;font-family:monospace;text-transform:none;}
+  .btn{background:var(--blue);color:#fff;border:none;padding:11px 20px;border-radius:7px;font-size:15.5px;cursor:pointer;font-weight:600;}
+  .btn.sec{background:#fff;color:var(--blue);border:1px solid var(--blue);}
+  .btn.small{padding:8px 14px;font-size:13.5px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .row-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+  .msg{padding:12px 16px;border-radius:7px;margin:10px 0;font-size:14.5px;display:none;}
+  .msg.ok{background:#e6f4ea;color:#137333;display:block;}
+  .msg.err{background:#fce8e6;color:#c5221f;display:block;}
+  .list{width:100%;border-collapse:collapse;font-size:14px;}
+  .list th,.list td{border:1px solid var(--line);padding:9px 10px;text-align:left;}
+  .list th{background:#eef3fb;position:sticky;top:0;}
+  .list tr:hover{background:#f0f6ff;cursor:pointer;}
+  .scroll{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:8px;}
+  .money{text-align:right;}
+  .list td.money, .list th.money{text-align:right !important;}
+  .kpi-the{color:#fff;border-radius:10px;padding:13px 15px;min-height:96px;display:flex;flex-direction:column;justify-content:flex-start;}
+  .kpi-nhan{font-size:13.5px;opacity:.92;line-height:1.3;}
+  .kpi-so{font-size:26px;font-weight:800;margin-top:5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kpi-phu{font-size:12.5px;opacity:.85;margin-top:3px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #dangTai{position:fixed;inset:0;background:rgba(255,255,255,.82);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+  #dangTai.hien{display:flex;}
+  .vong-xoay{width:52px;height:52px;border:5px solid #d6e2f5;border-top-color:#1a73e8;border-radius:50%;animation:xoay .8s linear infinite;}
+  @keyframes xoay{to{transform:rotate(360deg)}}
+  #dangTaiChu{font-size:16px;color:#1a73e8;font-weight:600;text-align:center;max-width:420px;}
+  .cham::after{content:'';animation:cham 1.2s steps(4,end) infinite;}
+  @keyframes cham{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+  .tabbar{display:flex;gap:6px;border-bottom:3px solid #1a73e8;margin:6px 0 16px;flex-wrap:wrap;}
+  .tabbtn{border:1px solid var(--line);border-bottom:none;background:#eef2f7;color:#5f6b7a;padding:12px 22px;font-size:15.5px;font-weight:600;cursor:pointer;border-radius:9px 9px 0 0;font-family:inherit;}
+  .tabbtn:hover{background:#e3ebf5;}
+  .tabbtn.dang-chon{background:#1a73e8;color:#fff;border-color:#1a73e8;}
+  .bang-chitiet{table-layout:auto;min-width:100%;}
+  .bang-chitiet th{white-space:nowrap;vertical-align:middle;padding:11px 12px;font-size:14px;background:#eef3fb;position:sticky;top:0;z-index:2;min-width:110px;}
+  .bang-chitiet td{white-space:nowrap;padding:9px 12px;font-size:14px;max-width:280px;overflow:hidden;text-overflow:ellipsis;}
+  .bang-chitiet td.rong{white-space:normal;max-width:320px;}
+  .bang-chitiet .dinh1{position:sticky;left:0;z-index:3;background:#fff;width:130px;min-width:130px;max-width:130px;box-shadow:2px 0 4px -2px rgba(0,0,0,.15);}
+  .bang-chitiet th.dinh1{z-index:4;background:#eef3fb;}
+  .bang-chitiet tr:nth-child(even) td{background:#fafbfd;}
+  .bang-chitiet tr:nth-child(even) td.dinh1{background:#fafbfd;}
+  .bang-chitiet tr:hover td{background:#f0f6ff;}
+  .bang-chitiet td.quahan{background:#fce8e6 !important;color:#c5221f;font-weight:700;text-align:center;}
+  .bang-chitiet td.dunghan{color:#188038;text-align:center;}
+  .idlookup{border-color:#b06000;background:#fff8e1;font-weight:600;}
+  .loi{border-color:#c5221f !important;background:#fff5f5 !important;}
+  .loi-text{font-size:14px;color:#c5221f;margin-top:3px;line-height:1.35;}
+  .batbuoc{color:#c5221f;font-weight:700;}
+  .goiy{font-size:13.5px;color:#8a94a3;margin-top:2px;font-style:italic;}
+  .loading{text-align:center;padding:30px;color:var(--muted);}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:#e8f0fe;color:var(--blue);}
+  .hint{font-size:14px;color:var(--muted);margin-top:4px;}
+  /* Màn hình đăng nhập */
+  #manHinhDangNhap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+  .dn-box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:26px;max-width:380px;width:100%;box-shadow:0 4px 18px rgba(0,0,0,.08);}
+  .dn-box h1{font-size:20px;color:var(--blue);margin:0 0 4px;}
+  .dn-box p{color:var(--muted);font-size:14px;margin:0 0 18px;}
+  .dn-box label{margin-top:12px;}
+  .dn-box input{text-transform:none;}
+  .dn-box .btn{width:100%;margin-top:18px;}
+  #dnLoi{display:none;background:#fce8e6;color:#c5221f;padding:10px 12px;border-radius:6px;font-size:14px;margin-top:14px;}
+  @media(max-width:640px){.grid{grid-template-columns:1fr;}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div id="dangTai"><div class="vong-xoay"></div><div id="dangTaiChu">Đang xử lý<span class="cham"></span></div></div>
+
+<!-- ===== MÀN HÌNH ĐĂNG NHẬP ===== -->
+<div id="manHinhDangNhap" style="display:none">
+  <form class="dn-box" onsubmit="dangNhap(event)">
+    <h1>KT4 · Đăng nhập</h1>
+    <p>Hệ thống nhập liệu & báo cáo kiểm tra thuế — Phòng Kiểm tra số 4</p>
+    <label>Email công vụ</label>
+    <input id="dnEmail" type="email" autocomplete="username" placeholder="ten@email...">
+    <label>Mật khẩu</label>
+    <input id="dnMatKhau" type="password" autocomplete="current-password" placeholder="Mật khẩu">
+    <button class="btn" id="btnDangNhap" type="submit">Đăng nhập</button>
+    <div id="dnLoi"></div>
+    <p style="margin-top:16px;font-size:13px">Chưa có tài khoản? Liên hệ admin của phòng để được cấp.</p>
+  </form>
+</div>
+
+<!-- ===== ỨNG DỤNG CHÍNH ===== -->
+<div id="appChinh" style="display:none">
+<header>
+  <h1>KT4 · Nhập liệu kiểm tra thuế</h1>
+  <div class="who" id="who">Đang tải…</div>
+  <div style="display:flex;gap:8px">
+    <a href="#" id="lnkBaoCao" onclick="moBaoCao(event)">📊 Xem báo cáo</a>
+    <button class="link" id="btnDangXuat" style="display:none" onclick="dangXuat()">Đăng xuất</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+
+<div id="khuNhapLieu">
+
+  <div class="card">
+    <h2>⓪ Tìm hồ sơ cũ để sửa / cập nhật (theo MST)</h2>
+    <div class="row-actions" style="align-items:center">
+      <input id="searchMST" placeholder="Nhập MST cần sửa" style="max-width:280px" inputmode="numeric">
+      <button class="btn small" onclick="timHoSo()">🔍 Tìm hồ sơ</button>
+      <span id="searchInfo" class="hint"></span>
+    </div>
+    <div id="searchResults" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>① Lấy dữ liệu từ VPĐT</h2>
+    <div class="paste-box" style="background:#e8f0fe;border-color:#1a73e8">
+      <label><b>Cách nhanh nhất — Tra theo ID từ dữ liệu đã import:</b> gõ ID văn bản → bấm "Tra cứu". Chương trình tự điền Số/Ngày văn bản, MST, tên NNT.</label>
+      <div class="row-actions" style="align-items:center">
+        <input id="vpdtId" placeholder="Nhập ID văn bản" style="max-width:260px">
+        <button class="btn small" onclick="traCuuID()">🔍 Tra cứu</button>
+        <button class="btn small sec" onclick="moVPDT()">🔗 Mở VPĐT</button>
+        <span id="vpdtInfo" class="hint"></span>
+      </div>
+    </div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:14px;color:#1a73e8;font-weight:600">➕ Cập nhật dữ liệu VPĐT (khi ID cần tra chưa có)</summary>
+      <div class="paste-box" style="margin-top:8px;background:#f0f9f2;border-color:#188038">
+        <label><b>Cách 1 — Chọn thẳng file Excel từ máy tính:</b> bấm nút, chọn file .xls/.xlsx export từ VPĐT. Chương trình tự đọc và nạp vào kho:</label>
+        <div class="row-actions" style="align-items:center">
+          <input type="file" id="fileVPDT" accept=".xls,.xlsx,.csv" style="font-size:12px;text-transform:none">
+          <button class="btn small" style="background:#188038" onclick="importFile()">📂 Nạp từ file</button>
+          <span id="fileInfo" class="hint"></span>
+        </div>
+        <label style="margin-top:14px"><b>Cách 2 — Dán dữ liệu:</b> copy các dòng từ bảng VPĐT → dán vào đây → bấm "Cập nhật". Trộn thêm vào kho, không xóa cũ:</label>
+        <textarea id="pasteUpdate" placeholder="Dán nhiều dòng, mỗi dòng 1 hồ sơ (copy trực tiếp từ bảng VPĐT)..."></textarea>
+        <div class="row-actions">
+          <button class="btn small" style="background:#188038" onclick="capNhatDL()">🔄 Cập nhật dữ liệu</button>
+          <span id="updateInfo" class="hint"></span>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #a5d6a7">
+          <label><b>Sau khi nạp dữ liệu mới:</b> bấm nút dưới đây để điền bù Số/Ngày văn bản cho những hồ sơ đã nhập ID nhưng lúc đó kho VPĐT chưa có. Chỉ điền vào ô đang trống.</label>
+          <div class="row-actions">
+            <button class="btn small" style="background:#b06000" onclick="dienBuThieu()">🩹 Điền bù dữ liệu còn thiếu</button>
+            <span id="dienBuInfo" class="hint"></span>
+          </div>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #a5d6a7">
+          <label><b>Cập nhật danh sách Tên NNT theo MST:</b> dán danh sách (mỗi dòng: MST và Tên, cách nhau bằng Tab), bấm cập nhật.</label>
+          <textarea id="pasteNNT" placeholder="Dán: MST [Tab] Tên NNT (nhiều dòng)"></textarea>
+          <div class="row-actions">
+            <button class="btn small" style="background:#188038" onclick="capNhatNNT()">👥 Cập nhật danh sách NNT</button>
+            <span id="nntInfo" class="hint"></span>
+          </div>
+        </div>
+      </div>
+    </details>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:14px;color:#5f6b7a">Cách dự phòng — dán tay cho 1 hồ sơ (nếu không tra được)</summary>
+      <div class="paste-box" style="margin-top:8px">
+        <label>Trên VPĐT: quét chọn dòng chứa Số/Ngày văn bản → copy → dán vào đây → bấm "Tách":</label>
+        <textarea id="pasteVPDT" placeholder="Ví dụ dán: 30844/TB-TPHCM   25/08/2026 ..."></textarea>
+        <div class="row-actions">
+          <button class="btn small" onclick="tachPaste()">✂️ Tách dữ liệu</button>
+          <span id="pasteInfo" class="hint"></span>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>② Thông tin hồ sơ <span class="badge" id="editBadge" style="display:none">Đang sửa dòng <b id="editRow"></b></span></h2>
+    <div style="background:#fff8e1;border:1px solid #f0a500;border-radius:8px;padding:11px 14px;margin-bottom:14px;font-size:14.5px;line-height:1.6">
+      <b>Lưu ý:</b> Hồ sơ vừa kiểm tra sau hoàn vừa quyết toán nhập 2 tab, tính 2 hồ sơ.
+    </div>
+    <div class="tabbar">
+      <button type="button" class="tabbtn" id="tab_QT" onclick="chonTab('QT')">📋 KT QUYẾT TOÁN</button>
+      <button type="button" class="tabbtn" id="tab_SH" onclick="chonTab('SH')">🔍 KT SAU HOÀN</button>
+      <button type="button" class="tabbtn" id="tab_TH" onclick="chonTab('TH')">💰 KT TRƯỚC HOÀN</button>
+    </div>
+    <div id="formArea" class="loading">Đang tải cấu hình…</div>
+    <div class="row-actions">
+      <button class="btn" id="btnSave" onclick="luuHoSo()" disabled>💾 Lưu hồ sơ</button>
+      <button class="btn sec" onclick="resetForm()">＋ Hồ sơ mới</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>③ Hồ sơ của đoàn bạn</h2>
+    <div class="scroll">
+      <table class="list" id="tblList"><thead><tr>
+        <th>MST</th><th>Tên NNT</th><th>Trưởng đoàn</th><th>Loại hình</th><th>Số QĐKT</th><th>Tổng thu&phạt</th><th></th>
+      </tr></thead><tbody id="listBody"><tr><td colspan="7" class="loading">Đang tải…</td></tr></tbody></table>
+    </div>
+  </div>
+
+</div><!-- hết khuNhapLieu -->
+
+<!-- ===== KHU BÁO CÁO ===== -->
+<div id="khuBaoCao" style="display:none">
+  <div class="card" style="border-color:#188038">
+    <h2 style="color:#188038">📊 Báo cáo &amp; Tổng hợp</h2>
+    <div id="bcPhamVi" class="hint" style="margin-bottom:10px"></div>
+    <div class="row-actions" style="align-items:center;flex-wrap:wrap">
+      <label style="font-size:14.5px;color:#5f6b7a;font-weight:600">Loại kiểm tra:</label>
+      <select id="bcLoai" onchange="locLai()" style="max-width:200px">
+        <option value="">— Tất cả loại —</option>
+        <option value="QT">KT quyết toán</option>
+        <option value="TH">KT trước hoàn</option>
+        <option value="SH">KT sau hoàn</option>
+      </select>
+      <label style="font-size:14.5px;color:#5f6b7a;font-weight:600">Trưởng đoàn:</label>
+      <select id="bcDoan" onchange="locLai()" style="max-width:220px"><option value="">— Tất cả đoàn —</option></select>
+      <button class="btn small" style="background:#188038" onclick="xuatExcel()">📊 Xuất Excel</button>
+      <span id="bcStatus" class="hint"></span>
+    </div>
+    <div class="row-actions" style="align-items:center;flex-wrap:wrap;margin-top:10px;background:#f0f9f2;border:1px solid #cbe8d4;border-radius:8px;padding:10px 12px">
+      <label style="font-size:14.5px;color:#5f6b7a;font-weight:600">Thời gian theo:</label>
+      <select id="bcMocNgay" style="max-width:230px">
+        <option value="">— Xem tất cả —</option>
+        <option value="ngayqdkt">Ngày QĐ kiểm tra</option>
+        <option value="ngayklkt">Ngày QĐ xử lý / Kết luận</option>
+        <option value="ngaybaocao">Ngày báo cáo KT</option>
+      </select>
+      <label style="font-size:14.5px;color:#5f6b7a">Từ:</label>
+      <input id="bcTuNgay" placeholder="dd/mm/yyyy" maxlength="10" style="max-width:130px">
+      <label style="font-size:14.5px;color:#5f6b7a">Đến:</label>
+      <input id="bcDenNgay" placeholder="dd/mm/yyyy" maxlength="10" style="max-width:130px">
+      <button class="btn small" style="background:#188038" onclick="locLai()">🔎 Áp dụng</button>
+      <button class="btn small sec" onclick="xoaLocThoiGian()">Xóa lọc</button>
+    </div>
+  </div>
+
+  <div id="bcKpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px;margin-bottom:16px"></div>
+
+  <div class="card">
+    <h2>Tổng hợp theo đoàn</h2>
+    <div class="scroll">
+      <table class="list"><thead><tr>
+        <th>Trưởng đoàn</th><th>Số hồ sơ</th><th class="money">Truy thu &amp; phạt</th>
+        <th class="money">Giảm khấu trừ</th><th class="money">Giảm lỗ</th><th class="money">Không hoàn</th><th class="money">Đã nộp NSNN</th><th>HS quá hạn</th>
+      </tr></thead><tbody id="bcDoanBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Chi tiết hồ sơ</h2>
+    <div class="row-actions" style="align-items:center;margin-bottom:10px">
+      <label style="font-size:14.5px;color:#5f6b7a;font-weight:600">Hiển thị:</label>
+      <select id="bcCheDoCot" onchange="veChiTiet()" style="max-width:260px">
+        <option value="chinh">Cột chính (gọn, dễ đọc)</option>
+        <option value="tien">Cột chính + số tiền</option>
+        <option value="tatca">Tất cả các cột</option>
+      </select>
+      <span id="bcDemCot" class="hint"></span>
+    </div>
+    <div class="scroll" style="max-height:520px">
+      <table class="list bang-chitiet"><thead id="bcThead"></thead><tbody id="bcTbody"></tbody></table>
+    </div>
+    <div id="bcPhanTrang" style="margin-top:12px;text-align:center"></div>
+  </div>
+</div><!-- hết khuBaoCao -->
+
+</div><!-- hết wrap -->
+</div><!-- hết appChinh -->
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
