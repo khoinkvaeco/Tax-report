@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KT4 · Chuyển dữ liệu cũ sang Supabase</title>
+<style>
+  *{box-sizing:border-box;font-family:'Segoe UI',Roboto,Arial,sans-serif;}
+  body{margin:0;background:#f5f7fb;color:#1f2733;font-size:15px;line-height:1.55;}
+  header{background:#188038;color:#fff;padding:14px 18px;}
+  header h1{margin:0;font-size:19px;}
+  .wrap{max-width:1000px;margin:16px auto;padding:0 14px;}
+  .card{background:#fff;border:1px solid #dfe3eb;border-radius:10px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .card h2{font-size:16.5px;margin:0 0 10px;color:#188038;}
+  label{display:block;font-weight:600;color:#5f6b7a;margin:10px 0 4px;font-size:14px;}
+  select,input{padding:9px 11px;border:1px solid #dfe3eb;border-radius:6px;font-size:15px;}
+  .btn{background:#188038;color:#fff;border:none;padding:11px 20px;border-radius:7px;font-size:15px;cursor:pointer;font-weight:600;}
+  .btn.blue{background:#1a73e8;} .btn.sec{background:#fff;color:#188038;border:1px solid #188038;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .step{counter-increment:s;} .step h2::before{content:"Bước " counter(s) ". ";}
+  body{counter-reset:s;}
+  .msg{padding:11px 14px;border-radius:7px;margin:10px 0;font-size:14.5px;display:none;}
+  .msg.ok{background:#e6f4ea;color:#137333;display:block;} .msg.err{background:#fce8e6;color:#c5221f;display:block;}
+  .msg.warn{background:#fff8e1;color:#8a6d00;display:block;}
+  table{border-collapse:collapse;font-size:13px;width:100%;}
+  th,td{border:1px solid #dfe3eb;padding:6px 8px;text-align:left;white-space:nowrap;}
+  th{background:#eef3fb;position:sticky;top:0;}
+  .scroll{overflow:auto;max-height:360px;border:1px solid #dfe3eb;border-radius:8px;margin-top:10px;}
+  .hint{color:#5f6b7a;font-size:13.5px;}
+  code{background:#eef2f7;padding:1px 5px;border-radius:4px;}
+  ol{padding-left:20px;} ol li{margin:4px 0;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<header><h1>KT4 · Chuyển dữ liệu cũ (Google Sheets → Supabase)</h1></header>
+<div class="wrap">
+
+  <div class="card">
+    <p>Trang này chạy hoàn toàn trong trình duyệt — dữ liệu <b>không</b> gửi đi đâu khi
+    chỉ chuyển đổi & tải CSV. Trình tự: chọn bảng → chọn file xuất từ Google Sheets →
+    xem trước → tải CSV sạch → nạp vào Supabase.</p>
+    <p class="hint">Trước khi xuất từ Google Sheets: nên chạy hàm <code>SUA_MST_MAT_SO_0</code>
+    một lần. Nếu quên, trang này cũng tự thêm lại số 0 đầu cho MST.</p>
+  </div>
+
+  <div class="card step">
+    <h2>Chọn bảng &amp; file dữ liệu</h2>
+    <label>Nạp vào bảng nào?</label>
+    <select id="bang">
+      <option value="ho_so">ho_so — Hồ sơ kiểm tra (từ sheet DATA)</option>
+      <option value="vpdt">vpdt — Kho văn bản (từ sheet VPDT_IMPORT)</option>
+      <option value="ds_nnt">ds_nnt — Tên NNT theo MST (từ sheet ds NNT)</option>
+    </select>
+    <label>Chọn file đã xuất (.csv, .xlsx, .xls)</label>
+    <input type="file" id="file" accept=".csv,.xlsx,.xls">
+    <div style="margin-top:14px"><button class="btn" onclick="docFile()">🔍 Đọc &amp; chuyển đổi</button></div>
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <div class="card step" id="cardXem" style="display:none">
+    <h2>Xem trước kết quả chuyển đổi</h2>
+    <div id="thongTin" class="hint"></div>
+    <div class="scroll"><table id="bangXem"></table></div>
+  </div>
+
+  <div class="card step" id="cardTai" style="display:none">
+    <h2>Tải CSV sạch &amp; nạp vào Supabase</h2>
+    <p><button class="btn" onclick="taiCSV()">⬇️ Tải file CSV đã chuyển</button></p>
+    <p class="hint">Sau đó trên Supabase: <b>Table Editor</b> → chọn bảng tương ứng →
+    <b>Insert → Import data from CSV</b> → chọn file vừa tải. Tiêu đề CSV đã trùng đúng
+    tên cột nên hệ thống tự khớp. Bấm Import là xong.</p>
+
+    <hr style="margin:18px 0;border:none;border-top:1px dashed #cbd5e1">
+    <h2 style="counter-increment:none">Hoặc: nạp thẳng vào Supabase (dành cho admin)</h2>
+    <p class="hint">Cần đã điền <code>config.js</code> và đăng nhập bằng tài khoản
+    <b>admin</b>. Cách này bỏ qua bước tải/ nạp CSV thủ công.</p>
+    <div id="dangNhapKhu">
+      <label>Email admin</label><input id="email" type="email" style="min-width:260px">
+      <label>Mật khẩu</label><input id="matkhau" type="password" style="min-width:260px">
+      <div style="margin-top:12px"><button class="btn blue" onclick="dangNhapVaNap()">🔐 Đăng nhập &amp; nạp thẳng</button></div>
+    </div>
+    <div id="tienTrinh" class="hint" style="margin-top:10px"></div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+/* ============ Chuyển dữ liệu cũ sang định dạng bảng Supabase ============ */
+var KETQUA=null;          // {bang, cols:[...], rows:[{...}], warn:[...]}
+var CANH_BAO_HEADER=[];
+
+function msg(t,cls){ var m=document.getElementById('msg'); m.textContent=t; m.className='msg '+(cls||''); }
+function chuan(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+// Sửa MST mất số 0 đầu (giống SUA_MST_MAT_SO_0)
+function cleanMST(v){
+  var s=String(v==null?'':v).trim();
+  if(/^\d{9}$/.test(s)) return '0'+s;
+  if(/^\d{12}$/.test(s)) return '0'+s.substring(0,9)+'-'+s.substring(9);
+  return s;
+}
+
+// Bản đồ nhãn (tiếng Việt) -> tên cột, cho bảng ho_so
+function banDoHoSo(){
+  var m={};
+  COLUMNS.forEach(function(c){ if(c.group!=='_') m[chuan(c.label)]=c.key; });
+  m[chuan('Người nhập (email)')]='nguoinhap';   // cột hệ thống cũ
+  return m;
+}
+// Với vpdt / ds_nnt: khớp theo từ khóa trong tiêu đề
+var TUKHOA_VPDT=[
+  {key:'id_vanban', kw:['id văn bản','id van ban']},
+  {key:'so_phathanh', kw:['số phát hành','so phat hanh']},
+  {key:'ngay_phathanh', kw:['ngày phát hành','ngay phat hanh']},
+  {key:'loai_vb', kw:['loại văn bản','loai van ban']},
+  {key:'trich_yeu', kw:['trích yếu','trich yeu']},
+  {key:'mst', kw:['mã số thuế','ma so thue']},
+  {key:'ten_nnt', kw:['nơi nhận','noi nhan','tên nnt','ten nnt','người nộp thuế']}
+];
+var TUKHOA_NNT=[
+  {key:'mst', kw:['mã số thuế','ma so thue','mst']},
+  {key:'ten_nnt', kw:['tên nnt','ten nnt','tên người nộp','tên đơn vị']}
+];
+
+// Không đưa các cột tự tính vào CSV (trigger sẽ tính lại). Giữ nguoinhap để lưu vết.
+var BO_QUA_KHI_NAP=['tongcong','quydoigiamlo','songayquahan','ngaycapnhat'];
+
+function docFile(){
+  var bang=document.getElementById('bang').value;
+  var inp=document.getElementById('file');
+  if(!inp.files||!inp.files.length){ msg('Bạn chưa chọn file.','err'); return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var grid=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+      if(bang==='ho_so') chuyenHoSo(grid);
+      else chuyenTheoTuKhoa(grid, bang, bang==='vpdt'?TUKHOA_VPDT:TUKHOA_NNT);
+    }catch(ex){ msg('Lỗi đọc file: '+ex.message,'err'); }
+  };
+  reader.onerror=function(){ msg('Không đọc được file.','err'); };
+  reader.readAsArrayBuffer(inp.files[0]);
+}
+
+// ---- Chuyển sheet DATA -> bảng ho_so ----
+function chuyenHoSo(grid){
+  if(!grid.length){ msg('File trống.','err'); return; }
+  var header=grid[0].map(chuan);
+  var bando=banDoHoSo();
+  var colIdx={};           // key -> chỉ số cột trong file
+  var khop=0; CANH_BAO_HEADER=[];
+  header.forEach(function(h,i){
+    if(chuan('Ngày cập nhật')===h) return;         // bỏ, để trigger tự đặt
+    var key=bando[h];
+    if(key){ colIdx[key]=i; khop++; }
+    else if(h) CANH_BAO_HEADER.push(grid[0][i]);
+  });
+  if(khop<3){ msg('Không nhận ra tiêu đề cột (chỉ khớp '+khop+' cột). File có đúng là sheet DATA không?','err'); return; }
+
+  var cols=Object.keys(colIdx).filter(function(k){ return BO_QUA_KHI_NAP.indexOf(k)<0; });
+  var rows=[];
+  for(var r=1;r<grid.length;r++){
+    var row=grid[r]; if(!row) continue;
+    // bỏ dòng trống hoàn toàn
+    var trong=cols.every(function(k){ return String(row[colIdx[k]]||'').trim()===''; });
+    if(trong) continue;
+    var rec={};
+    cols.forEach(function(k){
+      var v=row[colIdx[k]];
+      if(k==='mst') rec[k]=cleanMST(v);
+      else if(DATE_COLS.indexOf(k)>=0) rec[k]=vnToISO(normDateVN(v))||'';
+      else if(MONEY_COLS.indexOf(k)>=0){ var n=toInt(v); rec[k]=(n==null?'':n); }
+      else rec[k]=String(v==null?'':v).trim();
+    });
+    rows.push(rec);
+  }
+  hienKetQua('ho_so', cols, rows);
+}
+
+// ---- Chuyển vpdt / ds_nnt theo từ khóa tiêu đề (tự dò dòng tiêu đề) ----
+function chuyenTheoTuKhoa(grid, bang, dsTuKhoa){
+  // tìm dòng tiêu đề: dòng chứa nhiều từ khóa nhất
+  var hRow=-1, best=0;
+  for(var r=0;r<Math.min(grid.length,15);r++){
+    var joined=grid[r].map(chuan).join(' | ');
+    var dem=dsTuKhoa.reduce(function(s,tk){ return s + (tk.kw.some(function(k){return joined.indexOf(k)>=0;})?1:0); },0);
+    if(dem>best){ best=dem; hRow=r; }
+  }
+  if(hRow<0 || best<1){ msg('Không tìm thấy dòng tiêu đề phù hợp.','err'); return; }
+  var header=grid[hRow].map(chuan);
+  var colIdx={};
+  dsTuKhoa.forEach(function(tk){
+    for(var c=0;c<header.length;c++){ if(tk.kw.some(function(k){return header[c].indexOf(k)>=0;})){ colIdx[tk.key]=c; break; } }
+  });
+  var keyChinh = (bang==='vpdt') ? 'id_vanban' : 'mst';
+  if(!(keyChinh in colIdx)){ msg('Không xác định được cột khóa chính ('+keyChinh+'). Kiểm tra tiêu đề file.','err'); return; }
+  var cols=Object.keys(colIdx);
+  var rows=[], seen={};
+  for(var r2=hRow+1;r2<grid.length;r2++){
+    var row=grid[r2]; if(!row) continue;
+    var kc=String(row[colIdx[keyChinh]]||'').trim().replace(/\.0+$/,'');
+    if(!kc || !/\d/.test(kc)) continue;
+    if(seen[kc]) { /* trùng khóa -> ghi đè bản sau */ }
+    var rec={};
+    cols.forEach(function(k){
+      var v=row[colIdx[k]];
+      if(k==='id_vanban') rec[k]=kc;
+      else if(k==='mst') rec[k]=cleanMST(v);
+      else if(k==='ngay_phathanh') rec[k]=vnToISO(normDateVN(v))||'';
+      else rec[k]=String(v==null?'':v).trim();
+    });
+    if(seen[kc]!=null) rows[seen[kc]]=rec; else { seen[kc]=rows.length; rows.push(rec); }
+  }
+  CANH_BAO_HEADER=[];
+  hienKetQua(bang, cols, rows);
+}
+
+function hienKetQua(bang, cols, rows){
+  KETQUA={bang:bang, cols:cols, rows:rows};
+  document.getElementById('cardXem').style.display='block';
+  document.getElementById('cardTai').style.display='block';
+  var tt='Bảng <b>'+bang+'</b>: đọc được <b>'+rows.length+'</b> dòng, '+cols.length+' cột.';
+  if(CANH_BAO_HEADER.length) tt+=' <span style="color:#8a6d00">Bỏ qua cột không khớp: '+CANH_BAO_HEADER.join(', ')+'.</span>';
+  document.getElementById('thongTin').innerHTML=tt;
+  msg('Đã chuyển đổi xong. Xem trước bên dưới rồi tải CSV hoặc nạp thẳng.','ok');
+  // Bảng xem trước (tối đa 20 dòng)
+  var t=document.getElementById('bangXem');
+  var head='<tr>'+cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr>';
+  var body=rows.slice(0,20).map(function(rec){
+    return '<tr>'+cols.map(function(c){ var v=rec[c]; return '<td>'+(v===0||v?String(v):'')+'</td>'; }).join('')+'</tr>';
+  }).join('');
+  t.innerHTML=head+body;
+}
+
+// ---- Xuất CSV (tiêu đề = tên cột DB) ----
+function o(v){ var s=String(v==null?'':v); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+function taiCSV(){
+  if(!KETQUA){ msg('Chưa có dữ liệu.','err'); return; }
+  var cols=KETQUA.cols, rows=KETQUA.rows;
+  var csv=cols.join(',')+'\n'+rows.map(function(rec){ return cols.map(function(c){return o(rec[c]);}).join(','); }).join('\n');
+  var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});   // BOM để Excel/Supabase đọc UTF-8
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=KETQUA.bang+'_import.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---- Nạp thẳng vào Supabase (admin) ----
+async function dangNhapVaNap(){
+  if(!KETQUA){ msg('Chưa có dữ liệu để nạp.','err'); return; }
+  var tt=document.getElementById('tienTrinh');
+  if(String(window.SUPABASE_URL||'').indexOf('xxxx')>=0){ tt.innerHTML='<span style="color:#c5221f">Chưa điền config.js (SUPABASE_URL / ANON_KEY).</span>'; return; }
+  var email=document.getElementById('email').value.trim();
+  var mk=document.getElementById('matkhau').value;
+  tt.textContent='Đang đăng nhập…';
+  var dn=await SB.auth.signInWithPassword({email:email, password:mk});
+  if(dn.error){ tt.innerHTML='<span style="color:#c5221f">Đăng nhập lỗi: '+dn.error.message+'</span>'; return; }
+
+  var bang=KETQUA.bang, rows=KETQUA.rows;
+  // chuyển '' thành null để đúng kiểu ngày/số
+  var duLieu=rows.map(function(rec){ var o2={}; KETQUA.cols.forEach(function(c){ var v=rec[c]; o2[c]=(v===''?null:v); }); return o2; });
+  var tong=duLieu.length, xong=0, loi=0, lo=200;
+  for(var i=0;i<duLieu.length;i+=lo){
+    var goi=duLieu.slice(i,i+lo);
+    var kq;
+    if(bang==='vpdt') kq=await SB.from('vpdt').upsert(goi,{onConflict:'id_vanban'});
+    else if(bang==='ds_nnt') kq=await SB.from('ds_nnt').upsert(goi,{onConflict:'mst'});
+    else kq=await SB.from('ho_so').insert(goi);
+    if(kq.error){ loi+=goi.length; tt.innerHTML='<span style="color:#c5221f">Lỗi khi nạp (dòng ~'+(i+1)+'): '+kq.error.message+'</span>'; return; }
+    xong+=goi.length; tt.textContent='Đã nạp '+xong+'/'+tong+' dòng…';
+  }
+  tt.innerHTML='<b style="color:#137333">✓ Xong! Đã nạp '+xong+'/'+tong+' dòng vào bảng '+bang+'.</b>';
+}
+</script>
+</body>
+</html>

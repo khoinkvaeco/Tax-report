@@ -103,14 +103,29 @@ sau đó mở trình duyệt vào `http://localhost:8080`.
 
 ## Bước 7 — Chuyển dữ liệu cũ từ Google Sheets sang (nếu cần)
 
-1. Trong Google Sheets cũ: chạy hàm `SUA_MST_MAT_SO_0` một lần để làm sạch MST.
-2. Xuất từng sheet ra CSV (**File → Download → CSV**):
-   - Sheet `DATA` → nạp vào bảng `ho_so`
-   - Sheet `VPDT_IMPORT` → bảng `vpdt`
-   - Sheet `ds NNT` → bảng `ds_nnt`
-3. Trên Supabase: **Table Editor** → chọn bảng → **Insert → Import data from CSV**.
-   Ghép cột CSV với cột bảng cho đúng tên (tham khảo `01_schema.sql`).
+Dùng **trang chuyển đổi có sẵn** — nó tự khớp tiêu đề tiếng Việt sang đúng cột,
+đổi định dạng ngày, bỏ dấu chấm ở số tiền và **sửa lại MST bị mất số 0 đầu**.
 
+1. Trong Google Sheets cũ, xuất từng sheet ra file (**File → Download → Microsoft Excel .xlsx** hoặc **CSV**):
+   - Sheet `DATA` → cho bảng `ho_so`
+   - Sheet `VPDT_IMPORT` → cho bảng `vpdt`
+   - Sheet `ds NNT` → cho bảng `ds_nnt`
+2. Mở trang **`import.html`** (cùng chỗ với `index.html` sau khi đã đưa web lên mạng,
+   ví dụ `https://...netlify.app/import.html`; hoặc mở khi chạy thử ở Bước 6-C).
+3. Chọn **bảng**, chọn **file** vừa xuất → bấm **Đọc & chuyển đổi** → xem trước cho chắc.
+4. Chọn **một** trong hai cách nạp:
+   - **Tải CSV sạch** rồi lên Supabase → **Table Editor** → chọn bảng →
+     **Insert → Import data from CSV** → chọn file (tiêu đề đã trùng cột nên tự khớp).
+   - **Nạp thẳng vào Supabase**: điền `config.js` (Bước 5), đăng nhập bằng tài khoản
+     `admin` ngay trên trang → bấm **Đăng nhập & nạp thẳng**.
+5. Nạp theo thứ tự khuyến nghị: `ds_nnt` → `vpdt` → `ho_so`.
+
+> Lưu ý: các cột tự tính (Tổng cộng, Quy đổi giảm lỗ, Số ngày quá hạn) sẽ được hệ
+> thống **tính lại tự động** khi nạp, nên không cần đưa vào.
+>
+> Nếu muốn **giữ nguyên** cột "Người nhập (email)" của dữ liệu cũ, hãy dùng cách
+> **nạp CSV qua Table Editor**. Cách "nạp thẳng" sẽ ghi email admin vào cột này.
+>
 > Nếu dữ liệu cũ chưa nhiều, có thể bỏ qua bước này và nhập mới qua giao diện.
 
 ---

@@ -27,6 +27,7 @@ supabase/
   04_seed.sql            Nạp 28 cán bộ + ngày nghỉ lễ
 web/
   index.html             Giao diện (đăng nhập + nhập liệu + báo cáo)
+  import.html            Trang chuyển & nạp dữ liệu cũ từ Google Sheets sang Supabase
   config.js              ⚙️ 2 giá trị cần điền: URL và khóa anon của Supabase
   app.js                 Kết nối Supabase + lớp thay các hàm backend cũ
   ui.js                  Toàn bộ logic giao diện (chuyển từ NhapLieu_5.html)
