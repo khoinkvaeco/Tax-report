@@ -49,6 +49,8 @@ $$;
 --   Tính số ngày LÀM VIỆC từ NGÀY BBKT đến NGÀY BBCB BBKT, phần vượt quá
 --   23 ngày làm việc (trừ T7/CN và ngày lễ) là số ngày quá hạn.
 --   NULL = thiếu dữ liệu (chưa tính được);  0 = đúng hạn;  >0 = số ngày quá hạn
+-- Xóa bản cũ trước vì có đổi tên tham số (PostgreSQL không cho đổi tên qua REPLACE).
+drop function if exists so_ngay_qua_han(date, date);
 create or replace function so_ngay_qua_han(bbkt date, bbcbbbkt date) returns int
 language plpgsql stable as $$
 declare so_ngay int;
