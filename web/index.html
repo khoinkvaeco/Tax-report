@@ -140,7 +140,7 @@
         <span id="vpdtInfo" class="hint"></span>
       </div>
     </div>
-    <details style="margin-top:10px">
+    <details style="margin-top:10px" id="khuCapNhatVPDT">
       <summary style="cursor:pointer;font-size:14px;color:#1a73e8;font-weight:600">➕ Cập nhật dữ liệu VPĐT (khi ID cần tra chưa có)</summary>
       <div class="paste-box" style="margin-top:8px;background:#f0f9f2;border-color:#188038">
         <label><b>Cách 1 — Chọn thẳng file Excel từ máy tính:</b> bấm nút, chọn file .xls/.xlsx export từ VPĐT. Chương trình tự đọc và nạp vào kho:</label>
@@ -172,7 +172,7 @@
         </div>
       </div>
     </details>
-    <details style="margin-top:10px">
+    <details style="margin-top:10px" id="khuDanTay">
       <summary style="cursor:pointer;font-size:14px;color:#5f6b7a">Cách dự phòng — dán tay cho 1 hồ sơ (nếu không tra được)</summary>
       <div class="paste-box" style="margin-top:8px">
         <label>Trên VPĐT: quét chọn dòng chứa Số/Ngày văn bản → copy → dán vào đây → bấm "Tách":</label>
@@ -240,10 +240,10 @@
         <option value="ngaybaocao">Ngày báo cáo KT</option>
       </select>
       <label style="font-size:14.5px;color:#5f6b7a">Từ:</label>
-      <input id="bcTuNgay" placeholder="dd/mm/yyyy" maxlength="10" style="max-width:130px">
+      <input id="bcTuNgay" placeholder="dd/mm/yyyy" maxlength="10" inputmode="numeric" oninput="locNgay(this)" style="max-width:130px">
       <label style="font-size:14.5px;color:#5f6b7a">Đến:</label>
-      <input id="bcDenNgay" placeholder="dd/mm/yyyy" maxlength="10" style="max-width:130px">
-      <button class="btn small" style="background:#188038" onclick="locLai()">🔎 Áp dụng</button>
+      <input id="bcDenNgay" placeholder="dd/mm/yyyy" maxlength="10" inputmode="numeric" oninput="locNgay(this)" style="max-width:130px">
+      <button class="btn small" style="background:#188038" onclick="locLai()">🔎 Tra cứu</button>
       <button class="btn small sec" onclick="xoaLocThoiGian()">Xóa lọc</button>
     </div>
   </div>
@@ -261,7 +261,7 @@
   </div>
 
   <div class="card">
-    <h2>Chi tiết hồ sơ</h2>
+    <h2>Chi tiết hồ sơ <span style="font-size:12px;font-weight:400;color:#188038">(giao diện v15)</span></h2>
     <div class="row-actions" style="align-items:center;margin-bottom:10px">
       <label style="font-size:14.5px;color:#5f6b7a;font-weight:600">Hiển thị:</label>
       <select id="bcCheDoCot" onchange="veChiTiet()" style="max-width:260px">

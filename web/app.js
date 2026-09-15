@@ -333,6 +333,17 @@ var SERVER = {
     }
   },
 
+  // Lấy đúng MỘT hồ sơ theo id (để mở ra sửa). RLS tự lo quyền:
+  // nếu không có quyền xem thì trả về không tìm thấy.
+  async docHoSoTheoDong(rowIndex){
+    rowIndex=Number(rowIndex);
+    if(!rowIndex) return {ok:false, msg:'Số dòng không hợp lệ.'};
+    var {data,error}=await SB.from('ho_so').select('*').eq('id', rowIndex).maybeSingle();
+    if(error) throw viError(error);
+    if(!data) return {ok:false, msg:'Bạn không có quyền xem/sửa hồ sơ này, hoặc hồ sơ không còn.'};
+    return {ok:true, rec:dbToRec(data)};
+  },
+
   async findByMST(mst){
     mst=String(mst||'').trim();
     if(!mst) return {ok:false, msg:'Chưa nhập MST.'};
@@ -526,6 +537,8 @@ var SERVER = {
     if(loc.doan){ var mm={}; res.rows.forEach(function(r){var dd=String(r.truongdoan||'').trim(); if(dd)mm[dd]=1;}); dsDoan=Object.keys(mm).sort(); }
     else dsDoan=arrDoan.map(function(x){return x.truongdoan;}).sort();
 
+    // Hồ sơ mới nhập (id lớn hơn) hiện lên trước
+    rows.sort(function(a,b){ return (b._row||0)-(a._row||0); });
     var tongSo=rows.length;
     var soTrang=Math.max(1, Math.ceil(tongSo/soDong));
     if(trang>soTrang) trang=soTrang;
@@ -545,8 +558,8 @@ var SERVER = {
 /* ====================== E. LỚP TƯƠNG THÍCH google.script.run ====================== */
 /* Cho phép phần giao diện gọi y hệt như trên Apps Script cũ:
    google.script.run.withSuccessHandler(f).withFailureHandler(g).tenHam(args)  */
-var SERVER_METHODS = ['getConfig','getRecords','saveRecord','findByMST','lookupVPDTById',
-  'lookupAllIds','lookupNhieuID','parsePastedVPDT','traTenNNT','capNhatDsNNT',
+var SERVER_METHODS = ['getConfig','getRecords','saveRecord','docHoSoTheoDong','findByMST',
+  'lookupVPDTById','lookupAllIds','lookupNhieuID','parsePastedVPDT','traTenNNT','capNhatDsNNT',
   'capNhatDuLieuVPDT','capNhatDuLieuConThieu','getReportSummary'];
 function makeRunner(){
   var onOK=null, onErr=null;

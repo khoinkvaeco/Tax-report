@@ -45,16 +45,17 @@ begin
 end;
 $$;
 
--- ---- Số ngày làm việc quá hạn lập BBKT ----
+-- ---- Số ngày làm việc quá hạn ----
+--   Tính số ngày LÀM VIỆC từ NGÀY BBKT đến NGÀY BBCB BBKT, phần vượt quá
+--   23 ngày làm việc (trừ T7/CN và ngày lễ) là số ngày quá hạn.
 --   NULL = thiếu dữ liệu (chưa tính được);  0 = đúng hạn;  >0 = số ngày quá hạn
-create or replace function so_ngay_qua_han(bbcb date, bbkt date) returns int
+create or replace function so_ngay_qua_han(bbkt date, bbcbbbkt date) returns int
 language plpgsql stable as $$
-declare hanchot date;
+declare so_ngay int;
 begin
-  if bbcb is null or bbkt is null then return null; end if;
-  hanchot := cong_ngay_lam_viec(bbcb, 5);   -- hạn = BBCB QĐKT + 5 ngày làm việc
-  if bbkt <= hanchot then return 0; end if;
-  return dem_ngay_lam_viec(hanchot, bbkt);
+  if bbkt is null or bbcbbbkt is null then return null; end if;
+  so_ngay := dem_ngay_lam_viec(bbkt, bbcbbbkt);
+  return case when so_ngay > 23 then so_ngay - 23 else 0 end;
 end;
 $$;
 
@@ -74,8 +75,8 @@ begin
   -- Quy đổi giảm lỗ = Giảm khấu trừ + (Giảm lỗ × 20%)
   new.quydoigiamlo := coalesce(new.giamkhautru,0) + round(coalesce(new.giamlo,0) * 0.20);
 
-  -- Số ngày quá hạn
-  new.songayquahan := so_ngay_qua_han(new.ngaybbcbqdkt, new.ngaybbkt);
+  -- Số ngày quá hạn (từ NGÀY BBKT đến NGÀY BBCB BBKT, vượt quá 23 ngày làm việc)
+  new.songayquahan := so_ngay_qua_han(new.ngaybbkt, new.ngaybbcbbbkt);
 
   -- Ghi nhận người nhập & thời điểm cập nhật
   new.nguoinhap   := coalesce(auth.email(), new.nguoinhap);

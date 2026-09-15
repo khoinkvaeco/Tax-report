@@ -241,6 +241,20 @@ function batDangTai(chu){
 function tatDangTai(){ var o=document.getElementById('dangTai'); if(o) o.className=''; }
 var money=function(n){ n=Number(n)||0; return n.toLocaleString('vi-VN'); };
 
+// Thông báo "ĐÃ LƯU" nổi giữa màn hình rồi tự tắt
+function hienDaLuu(){
+  var cu=document.getElementById('daLuuToast'); if(cu) cu.remove();
+  var d=document.createElement('div');
+  d.id='daLuuToast';
+  d.innerHTML='<div style="font-size:44px">✓</div><div>ĐÃ LƯU</div>';
+  d.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);'+
+    'z-index:10000;background:rgba(24,128,56,.96);color:#fff;padding:26px 44px;'+
+    'border-radius:14px;font-size:22px;font-weight:800;text-align:center;'+
+    'box-shadow:0 8px 30px rgba(0,0,0,.25)';
+  document.body.appendChild(d);
+  setTimeout(function(){ if(d.parentNode) d.remove(); }, 1400);
+}
+
 window.onerror=function(msg,src,line){
   var tb=document.getElementById('listBody');
   if(tb) tb.innerHTML='<tr><td colspan="7" style="color:#c5221f;padding:12px">Lỗi giao diện: '+msg+' (dòng '+line+')</td></tr>';
@@ -261,6 +275,13 @@ function khoiDongApp(){
     }
     document.getElementById('btnSave').disabled=(cfg.user.vaitro==='guest');
     if(cfg.user.vaitro==='guest') showMsg('Email của bạn chưa được cấp quyền. Liên hệ admin để thêm email vào bảng cán bộ (can_bo).','err');
+    // Chỉ admin và lãnh đạo mới thấy khu "Cập nhật dữ liệu VPĐT" / dán tay
+    var vt=String(cfg.user.vaitro||'').toLowerCase();
+    var quanTri=(vt==='admin'||vt==='lanhdao');
+    var khuVPDT=document.getElementById('khuCapNhatVPDT');
+    if(khuVPDT && !quanTri) khuVPDT.style.display='none';
+    var khuDanTay=document.getElementById('khuDanTay');
+    if(khuDanTay && !quanTri) khuDanTay.style.display='none';
   }).withFailureHandler(function(e){ showMsg('Lỗi tải cấu hình: '+e.message,'err'); }).getConfig();
 }
 
@@ -350,7 +371,14 @@ function buildField(c){
     return '<select id="f_'+c.key+'" onchange="'+xoaLoi+'"><option value="">— chọn —</option>'+
            opts.map(function(o){return '<option>'+o+'</option>';}).join('')+'</select>';
   } else if(c.type==='date'){
-    return '<input type="date" id="f_'+c.key+'" onchange="'+xoaLoi+'" style="text-transform:none">';
+    // Ô hiện dd/mm/yyyy (tự chèn dấu /), kèm nút lịch mở hộp chọn ngày
+    return '<div style="display:flex;gap:4px;position:relative">'+
+      '<input id="f_'+c.key+'" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" '+
+        'oninput="'+xoaLoi+';locNgay(this)" onblur="kiemTraNgay(this)" style="text-transform:none">'+
+      '<input type="date" id="pick_'+c.key+'" onchange="chonTuLich(\''+c.key+'\')" '+
+        'style="width:36px;padding:0;border:1px solid var(--line);border-radius:6px;cursor:pointer" '+
+        'title="Chọn từ lịch">'+
+      '</div>';
   } else if(c.type==='money'){
     return '<input id="f_'+c.key+'" class="money" inputmode="numeric" oninput="'+xoaLoi+';dinhDangTien(this);recalc();updatePreview();">';
   } else if(c.type==='idlookup'){
@@ -360,7 +388,8 @@ function buildField(c){
   } else if(c.key==='tencty'){
     return '<input id="f_'+c.key+'" style="text-transform:uppercase" oninput="'+xoaLoi+';vietHoa(this)">';
   } else if(c.key==='mst'){
-    return '<input id="f_'+c.key+'" inputmode="numeric" maxlength="14" oninput="'+xoaLoi+'" onblur="traTenTheoMST()">';
+    return '<input id="f_'+c.key+'" inputmode="numeric" maxlength="14" oninput="'+xoaLoi+'" '+
+           'onblur="traTenTheoMST()" onkeydown="if(event.key===\'Enter\'||event.key===\'Tab\'){traTenTheoMST();}">';
   } else {
     return '<input id="f_'+c.key+'" oninput="'+xoaLoi+'">';
   }
@@ -375,12 +404,35 @@ function dinhDangTien(o){
   if(!so){ o.value=''; return; }
   o.value=so.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 }
-function sangISO(s){ var m=String(s||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if(!m) return ''; return m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2); }
-function sangVN(s){ var m=String(s||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return String(s||'').trim(); return m[3]+'/'+m[2]+'/'+m[1]; }
+// Chọn ngày từ lịch -> điền vào ô text dạng dd/mm/yyyy
+function chonTuLich(key){
+  var pick=document.getElementById('pick_'+key);
+  var o=document.getElementById('f_'+key);
+  if(!pick||!o) return;
+  var m=String(pick.value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m){ o.value=m[3]+'/'+m[2]+'/'+m[1]; xoaLoiO(key); }
+}
+// Tự chèn dấu / khi gõ ngày: 25082026 -> 25/08/2026
+function locNgay(o){
+  var so=String(o.value||'').replace(/\D/g,'').slice(0,8);
+  var kq=so;
+  if(so.length>=5) kq=so.slice(0,2)+'/'+so.slice(2,4)+'/'+so.slice(4);
+  else if(so.length>=3) kq=so.slice(0,2)+'/'+so.slice(2);
+  o.value=kq;
+}
+// Kiểm tra ngày hợp lệ khi rời ô
+function kiemTraNgay(o){
+  var v=String(o.value||'').trim();
+  if(!v){ o.classList.remove('loi'); return; }
+  if(ngayHopLe(v)){ o.classList.remove('loi'); }
+  else { o.classList.add('loi'); showMsg('Ngày "'+v+'" không hợp lệ. Nhập theo dạng ngày/tháng/năm, ví dụ 25/08/2026.','err'); }
+}
 function traTenTheoMST(){
   var mst=String(getV('mst')||'').trim(); if(!mst) return;
   var oTen=document.getElementById('f_tencty');
+  if(oTen && !oTen.value) oTen.placeholder='ĐANG TRA TÊN…';
   google.script.run.withSuccessHandler(function(r){
+    if(oTen) oTen.placeholder='';
     if(r && r.ok && r.ten){ if(oTen){ oTen.value=r.ten; xoaLoiO('tencty'); } showMsg('Đã tự điền tên NNT: '+r.ten,'ok'); }
     else { showMsg('MST '+mst+' chưa có trong danh sách NNT — bạn gõ tay tên đơn vị.','err'); }
   }).withFailureHandler(function(){}).traTenNNT(mst);
@@ -568,8 +620,7 @@ function collect(){
   CFG.columns.forEach(function(c){
     var v=getV(c.key);
     if(c.type==='money'||c.type==='autocalc'){ v=String(v).replace(/[.,\s]/g,''); }
-    else if(c.type==='date'){ v=sangVN(v); }
-    rec[c.key]=v;
+    rec[c.key]=v;   // ô ngày đã là dd/mm/yyyy sẵn
   });
   rec.loaitab=TAB_HIEN_TAI;
   if(rec.chuyende==='Khác'){ var o=document.getElementById('f_chuyende_khac'); var t=o?String(o.value||'').trim():''; if(t) rec.chuyende=t; }
@@ -588,16 +639,24 @@ function ngayHopLe(s){
   if(mo<1||mo>12) return false; if(d<1||d>31) return false; if(y<2000||y>2100) return false;
   var test=new Date(y,mo-1,d); return test.getDate()===d && (test.getMonth()+1)===mo;
 }
-var O_BAT_BUOC=['mst','tencty','truongdoan','tv1','loaihinh','kykt','kyhoan','kyhoan_sh','trangthai'];
+var O_BAT_BUOC=['mst','tencty','truongdoan','tv1','loaihinh','kykt','kyhoan','kyhoan_sh','ngaydexuat','trangthai'];
 function laBatBuoc(key){ return O_BAT_BUOC.indexOf(key)>=0; }
 function kiemTraForm(rec){
   var loi=[]; xoaCanhBao();
   var mst=String(rec.mst||'').trim();
   if(!mst) loi.push({key:'mst', msg:'Bắt buộc nhập. MST gồm 10 chữ số, ví dụ: 0316055012'});
   else if(!/^\d{10}(-\d{3})?$/.test(mst)) loi.push({key:'mst', msg:'MST phải là 10 chữ số (chi nhánh thêm -3 số). Bạn đang nhập: "'+mst+'"'});
-  [{key:'tencty',msg:'Bắt buộc nhập Tên NNT.'},{key:'truongdoan',msg:'Bắt buộc chọn Trưởng đoàn từ danh sách.'},
-   {key:'tv1',msg:'Bắt buộc chọn Thành viên 1 từ danh sách.'},{key:'loaihinh',msg:'Bắt buộc chọn Loại hình kiểm tra.'},
-   {key:'kykt',msg:'Bắt buộc nhập Kỳ kiểm tra, ví dụ: 2023-2024.'}].forEach(function(b){ if(!String(rec[b.key]||'').trim()) loi.push({key:b.key,msg:b.msg}); });
+  var tab=tabHienTai();
+  // Chỉ kiểm tra ô bắt buộc ĐANG HIỂN THỊ trong tab hiện tại
+  var nhanBatBuoc={ tencty:'Tên NNT', truongdoan:'Trưởng đoàn', tv1:'Thành viên 1',
+    loaihinh:'Loại hình kiểm tra', kykt:'Kỳ kiểm tra', kyhoan:'Kỳ hoàn',
+    kyhoan_sh:'Kỳ hoàn', ngaydexuat:'Ngày đề xuất KT', trangthai:'Trạng thái' };
+  Object.keys(nhanBatBuoc).forEach(function(k){
+    if(O_BAT_BUOC.indexOf(k)<0) return;
+    var col=CFG.columns.filter(function(c){return c.key===k;})[0];
+    if(!col || !thuocTab(col, tab)) return;   // ô không có trong tab này -> bỏ qua
+    if(!String(rec[k]||'').trim()) loi.push({key:k, msg:'Bắt buộc: '+nhanBatBuoc[k]+'.'});
+  });
   var lkh=String(rec.loaikh||'').trim(); var cde=String(rec.chuyende||'').trim();
   if(/chuyên\s*đề/i.test(lkh) && !cde) loi.push({key:'chuyende', msg:'Đã chọn Loại kế hoạch là "Chuyên đề" nên bắt buộc chọn Tên chuyên đề.'});
   if(cde==='Khác'){ var oKhac=document.getElementById('f_chuyende_khac'); if(!oKhac || !String(oKhac.value||'').trim()) loi.push({key:'chuyende', msg:'Đã chọn "Khác" — hãy gõ tên chuyên đề cụ thể vào ô bên cạnh.'}); }
@@ -618,11 +677,12 @@ function luuHoSo(){
   if(loi.length){
     loi.forEach(function(l){ canhBaoO(l.key, l.msg); });
     var dau=document.getElementById('f_'+loi[0].key); if(dau){ dau.focus(); dau.scrollIntoView({behavior:'smooth',block:'center'}); }
-    showMsg('Có '+loi.length+' chỗ cần sửa. Xem chỉ dẫn màu đỏ dưới từng ô.','err'); return;
+    var tenOSai=loi.map(function(l){ return nhanCot(l.key); });
+    showMsg('Có '+loi.length+' chỗ cần sửa: '+tenOSai.join(', ')+'. Xem chỉ dẫn màu đỏ dưới từng ô.','err'); return;
   }
   document.getElementById('btnSave').disabled=true; batDangTai('Đang lưu hồ sơ');
   google.script.run.withSuccessHandler(function(r){
-    tatDangTai(); showMsg('✓ '+r.msg,'ok');
+    tatDangTai(); hienDaLuu(); showMsg('✓ '+r.msg,'ok');
     document.getElementById('btnSave').disabled=false; resetForm(); loadList();
   }).withFailureHandler(function(e){ tatDangTai(); showMsg('Không lưu được: '+(e&&e.message?e.message:e),'err'); document.getElementById('btnSave').disabled=false; }).saveRecord(rec, EDIT_ROW);
 }
@@ -645,9 +705,14 @@ function loadList(){
       tb.innerHTML='';
       if(!res || !res.rows){ tb.innerHTML='<tr><td colspan="7" style="color:#c5221f">Máy chủ không trả về dữ liệu.</td></tr>'; return; }
       if(!res.rows.length){ tb.innerHTML='<tr><td colspan="7" class="loading">Chưa có hồ sơ nào bạn được xem.</td></tr>'; return; }
-      res.rows.forEach(function(r){
+      // Hồ sơ mới nhập (id lớn hơn) hiện lên đầu bảng
+      var ds=res.rows.slice().sort(function(a,b){ return (b._row||0)-(a._row||0); });
+      ds.forEach(function(r){
         var tr=document.createElement('tr');
-        tr.innerHTML='<td>'+(r.mst||'')+'</td><td>'+(r.tencty||'')+'</td><td>'+(r.truongdoan||'')+'</td><td>'+(r.loaihinh||'')+'</td><td>'+(r.soqdkt||'')+'</td><td class="money">'+money(r.tongcong)+'</td><td><button class="btn small sec" onclick="editRow('+r._row+')">Sửa</button></td>';
+        tr.innerHTML='<td><a href="#" onclick="editRow('+r._row+');return false;" '+
+          'style="color:#1a73e8;font-weight:600;text-decoration:underline">'+(r.mst||'')+'</a></td>'+
+          '<td>'+(r.tencty||'')+'</td><td>'+(r.truongdoan||'')+'</td><td>'+(r.loaihinh||'')+
+          '</td><td>'+(r.soqdkt||'')+'</td><td class="money">'+money(r.tongcong)+'</td><td></td>';
         tb.appendChild(tr);
       });
     }catch(err){ tb.innerHTML='<tr><td colspan="7" style="color:#c5221f;padding:12px">Lỗi hiển thị danh sách: '+err.message+'</td></tr>'; }
@@ -657,24 +722,30 @@ function loadList(){
   }).getRecords(null);
 }
 function editRow(rowNum){
+  batDangTai('Đang mở hồ sơ');
   google.script.run.withSuccessHandler(function(res){
-    var rec=res.rows.filter(function(x){return x._row===rowNum;})[0];
-    if(!rec){ showMsg('Không tìm thấy hồ sơ.','err'); return; }
-    fillFormFromRecord(rec);
-  }).getRecords(null);
+    tatDangTai();
+    if(!res || !res.ok){ showMsg((res&&res.msg)||'Không mở được hồ sơ.','err'); return; }
+    fillFormFromRecord(res.rec);
+    showMsg('Đã mở hồ sơ để sửa. Chỉnh xong bấm Lưu.','ok');
+  }).withFailureHandler(function(e){
+    tatDangTai(); showMsg('Lỗi mở hồ sơ: '+(e&&e.message?e.message:e),'err');
+  }).docHoSoTheoDong(rowNum);
 }
 function fillFormFromRecord(rec){
   EDIT_ROW=rec._row;
   var tabHS=tabCuaHoSo(rec);
-  if(tabHS!==TAB_HIEN_TAI){ TAB_HIEN_TAI=tabHS; toSangTab(); buildForm(); }
+  // LUÔN chuyển về đúng tab của hồ sơ và dựng lại form để mọi ô đều có mặt rồi mới điền
+  TAB_HIEN_TAI=tabHS; toSangTab(); buildForm();
+  var oLH0=document.getElementById('f_loaihinh');
+  if(oLH0 && !rec.loaihinh && LOAI_MAC_DINH[tabHS]) oLH0.value=LOAI_MAC_DINH[tabHS];
   document.getElementById('editBadge').style.display='inline-block';
   document.getElementById('editRow').textContent=rec._row;
   CFG.columns.forEach(function(c){
     var e=document.getElementById('f_'+c.key); if(!e) return;
     var v=rec[c.key];
     if(c.type==='money'||c.type==='autocalc'){ var so=String(v==null?'':v).replace(/\D/g,''); v=so?so.replace(/\B(?=(\d{3})+(?!\d))/g,'.'):''; }
-    else if(c.type==='date'){ v=sangISO(v); }
-    e.value=(v===0||v)?v:'';
+    e.value=(v===0||v)?v:'';   // ô ngày đã là dd/mm/yyyy, điền thẳng
   });
   var sel=document.getElementById('f_chuyende'); var oKhac=document.getElementById('f_chuyende_khac');
   if(sel && oKhac){
@@ -684,12 +755,28 @@ function fillFormFromRecord(rec){
     else { oKhac.style.display='none'; oKhac.value=''; }
   }
   updatePreview();
+  // Trạng thái HOÀN THÀNH: công chức chỉ được xem, admin vẫn sửa
   var tt=String(rec.trangthai||'').trim().toLowerCase();
   var btn=document.getElementById('btnSave');
-  if(tt==='hoàn thành'){
+  var laAdmin=(String(CFG.user.vaitro||'').toLowerCase()==='admin');
+  if(tt==='hoàn thành' && !laAdmin){
     if(btn){ btn.disabled=true; btn.textContent='🔒 Hồ sơ đã hoàn thành'; }
-    showMsg('Hồ sơ này ở trạng thái HOÀN THÀNH nên không sửa được. Liên hệ admin nếu cần mở khóa.','err');
-  } else { if(btn && CFG.user.vaitro!=='guest'){ btn.disabled=false; btn.textContent='💾 Lưu hồ sơ'; } }
+    // khóa mọi ô nhập, chỉ cho xem
+    CFG.columns.forEach(function(c){
+      var e=document.getElementById('f_'+c.key);
+      if(e){ e.readOnly=true; e.disabled=(e.tagName==='SELECT'); e.style.background='#f1f3f4'; }
+    });
+    var oKhac0=document.getElementById('f_chuyende_khac');
+    if(oKhac0){ oKhac0.readOnly=true; oKhac0.style.background='#f1f3f4'; }
+    showMsg('Hồ sơ này đã HOÀN THÀNH — bạn chỉ xem được, không sửa. Liên hệ admin nếu cần mở khóa.','err');
+  } else {
+    if(btn && CFG.user.vaitro!=='guest'){ btn.disabled=false; btn.textContent='💾 Lưu hồ sơ'; }
+    // mở khóa lại (phòng khi vừa xem hồ sơ hoàn thành rồi mở hồ sơ khác)
+    CFG.columns.forEach(function(c){
+      var e=document.getElementById('f_'+c.key);
+      if(e){ e.readOnly=(c.type==='auto'||c.type==='autocalc'); e.disabled=false; e.style.background=''; }
+    });
+  }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function timHoSo(){
@@ -710,10 +797,13 @@ function timHoSo(){
   }).withFailureHandler(function(e){ document.getElementById('searchInfo').textContent=''; showMsg(e.message,'err'); }).findByMST(mst);
 }
 function suaHoSo(rowNum){
-  var rec=(window._searchRows||[]).filter(function(x){return x._row===rowNum;})[0];
-  if(!rec){ showMsg('Không tìm thấy hồ sơ.','err'); return; }
-  fillFormFromRecord(rec);
-  showMsg('Đã nạp hồ sơ MST '+rec.mst+' vào form. Sửa xong bấm Lưu.','ok');
+  batDangTai('Đang mở hồ sơ');
+  google.script.run.withSuccessHandler(function(res){
+    tatDangTai();
+    if(!res || !res.ok){ showMsg((res&&res.msg)||'Không mở được hồ sơ.','err'); return; }
+    fillFormFromRecord(res.rec);
+    showMsg('Đã mở hồ sơ MST '+res.rec.mst+' để sửa. Chỉnh xong bấm Lưu.','ok');
+  }).withFailureHandler(function(e){ tatDangTai(); showMsg('Lỗi mở hồ sơ: '+(e&&e.message?e.message:e),'err'); }).docHoSoTheoDong(rowNum);
 }
 function showMsg(t,cls){ var m=document.getElementById('msg'); m.textContent=t; m.className='msg '+cls; if(cls==='ok') setTimeout(function(){ m.className='msg'; },4000); }
 
