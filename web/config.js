@@ -10,7 +10,7 @@
  *  an toàn nhờ phân quyền RLS trong cơ sở dữ liệu. (KHÔNG dùng khóa
  *  "service_role" ở đây — khóa đó bỏ qua mọi phân quyền.)
  * ===================================================================== */
-window.SUPABASE_URL      = 'https://xxxxxxxxxxxxxxxx.supabase.co';ymbbryniaefsaukdzjmh
+window.SUPABASE_URL      = 'https://xxxxxxxxxxxxxxxx.supabase.co';
 window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltYmJyeW5pYWVmc2F1a2R6am1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0NzQxMjEsImV4cCI6MjEwNTA1MDEyMX0.a7Cclmv2zxKojlEfa4zdg3mAx1PWfru9lMEm2M7TpBM';
 
 // Link trang tra cứu VPĐT (đổi nếu VPĐT thay địa chỉ)
