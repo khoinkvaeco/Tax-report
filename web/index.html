@@ -78,7 +78,11 @@
   .dn-box label{margin-top:12px;}
   .dn-box input{text-transform:none;}
   .dn-box .btn{width:100%;margin-top:18px;}
-  #dnLoi{display:none;background:#fce8e6;color:#c5221f;padding:10px 12px;border-radius:6px;font-size:14px;margin-top:14px;}
+  .dn-msg{display:none;padding:10px 12px;border-radius:6px;font-size:14px;margin-top:14px;}
+  .dn-msg.err{background:#fce8e6;color:#c5221f;}
+  .dn-msg.ok{background:#e6f4ea;color:#137333;}
+  .dn-msg.show{display:block;}
+  #manHinhDangNhap{min-height:100vh;}
   @media(max-width:640px){.grid{grid-template-columns:1fr;}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -90,7 +94,9 @@
 
 <!-- ===== MÀN HÌNH ĐĂNG NHẬP ===== -->
 <div id="manHinhDangNhap" style="display:none">
-  <form class="dn-box" onsubmit="dangNhap(event)">
+
+  <!-- Bước: Đăng nhập -->
+  <form class="dn-box" id="panelDangNhap" onsubmit="dangNhap(event)">
     <h1>KT4 · Đăng nhập</h1>
     <p>Hệ thống nhập liệu & báo cáo kiểm tra thuế — Phòng Kiểm tra số 4</p>
     <label>Email công vụ</label>
@@ -98,8 +104,66 @@
     <label>Mật khẩu</label>
     <input id="dnMatKhau" type="password" autocomplete="current-password" placeholder="Mật khẩu">
     <button class="btn" id="btnDangNhap" type="submit">Đăng nhập</button>
-    <div id="dnLoi"></div>
-    <p style="margin-top:16px;font-size:13px">Chưa có tài khoản? Liên hệ admin của phòng để được cấp.</p>
+    <div id="dnLoi" class="dn-msg err"></div>
+    <p style="margin-top:16px;font-size:13.5px">
+      <a href="#" onclick="hienPanel('panelQuenMK');return false;" style="color:#1a73e8;font-weight:600">Quên mật khẩu?</a>
+    </p>
+    <p style="margin-top:6px;font-size:13px">Chưa có tài khoản? Liên hệ admin của phòng để được cấp.</p>
+  </form>
+
+  <!-- Bước: Quên mật khẩu -->
+  <form class="dn-box" id="panelQuenMK" style="display:none" onsubmit="guiQuenMK(event)">
+    <h1>Quên mật khẩu</h1>
+    <p>Nhập email công vụ. Hệ thống gửi cho bạn một liên kết để đặt lại mật khẩu.</p>
+    <label>Email công vụ</label>
+    <input id="qmkEmail" type="email" autocomplete="username" placeholder="ten@email...">
+    <button class="btn" id="btnGuiQuenMK" type="submit">Gửi liên kết đặt lại</button>
+    <div id="qmkMsg" class="dn-msg"></div>
+    <p style="margin-top:16px;font-size:13.5px">
+      <a href="#" onclick="hienPanel('panelDangNhap');return false;" style="color:#1a73e8;font-weight:600">← Quay lại đăng nhập</a>
+    </p>
+  </form>
+
+  <!-- Bước: Đổi mật khẩu lần đầu (bắt buộc) -->
+  <form class="dn-box" id="panelDoiMKLanDau" style="display:none" onsubmit="doiMKLanDau(event)">
+    <h1>Đổi mật khẩu lần đầu</h1>
+    <p>Vì lý do bảo mật, lần đăng nhập đầu tiên bạn phải đặt mật khẩu mới của riêng mình.</p>
+    <label>Mật khẩu mới (ít nhất 6 ký tự)</label>
+    <input id="ldMK1" type="password" autocomplete="new-password" placeholder="Mật khẩu mới">
+    <label>Nhập lại mật khẩu mới</label>
+    <input id="ldMK2" type="password" autocomplete="new-password" placeholder="Nhập lại">
+    <button class="btn" id="btnDoiMKLanDau" type="submit">Đặt mật khẩu & vào hệ thống</button>
+    <div id="ldMsg" class="dn-msg err"></div>
+  </form>
+
+  <!-- Bước: Đặt lại mật khẩu (từ liên kết email) -->
+  <form class="dn-box" id="panelDatLaiMK" style="display:none" onsubmit="datLaiMK(event)">
+    <h1>Đặt lại mật khẩu</h1>
+    <p>Nhập mật khẩu mới cho tài khoản của bạn.</p>
+    <label>Mật khẩu mới (ít nhất 6 ký tự)</label>
+    <input id="dlMK1" type="password" autocomplete="new-password" placeholder="Mật khẩu mới">
+    <label>Nhập lại mật khẩu mới</label>
+    <input id="dlMK2" type="password" autocomplete="new-password" placeholder="Nhập lại">
+    <button class="btn" id="btnDatLaiMK" type="submit">Lưu mật khẩu mới</button>
+    <div id="dlMsg" class="dn-msg err"></div>
+  </form>
+
+</div>
+
+<!-- ===== HỘP ĐỔI MẬT KHẨU (trong app) ===== -->
+<div id="modalDoiMK" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10000;align-items:center;justify-content:center;padding:16px">
+  <form class="dn-box" onsubmit="doiMKTrongApp(event)" style="margin:0">
+    <h1>Đổi mật khẩu</h1>
+    <p>Nhập mật khẩu mới cho tài khoản của bạn.</p>
+    <label>Mật khẩu mới (ít nhất 6 ký tự)</label>
+    <input id="dmMK1" type="password" autocomplete="new-password" placeholder="Mật khẩu mới">
+    <label>Nhập lại mật khẩu mới</label>
+    <input id="dmMK2" type="password" autocomplete="new-password" placeholder="Nhập lại">
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn" id="btnDoiMKApp" type="submit" style="flex:1">Lưu</button>
+      <button class="btn sec" type="button" onclick="dongDoiMK()" style="flex:1">Hủy</button>
+    </div>
+    <div id="dmMsg" class="dn-msg err"></div>
   </form>
 </div>
 
@@ -110,6 +174,7 @@
   <div class="who" id="who">Đang tải…</div>
   <div style="display:flex;gap:8px">
     <a href="#" id="lnkBaoCao" onclick="moBaoCao(event)">📊 Xem báo cáo</a>
+    <button class="link" id="btnDoiMK" style="display:none" onclick="moDoiMK()">🔑 Đổi mật khẩu</button>
     <button class="link" id="btnDangXuat" style="display:none" onclick="dangXuat()">Đăng xuất</button>
   </div>
 </header>

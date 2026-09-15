@@ -38,10 +38,20 @@ Mỗi lần chạy thấy báo **Success** là được.
 Mỗi cán bộ cần một tài khoản (email + mật khẩu) để đăng nhập.
 
 1. Menu trái → **Authentication** → **Users** → **Add user** → **Create new user**.
-2. Nhập **email** và **mật khẩu** cho cán bộ đó → **Create user**.
+2. Nhập **email** và một **mật khẩu tạm** cho cán bộ đó → **Create user**.
 3. Làm lại cho từng cán bộ (hoặc tạo dần khi cần).
 
 > Mẹo: nên tạo trước tài khoản **admin** (của bạn) để thử nghiệm.
+
+**Mật khẩu — cán bộ tự quản lý sau đó:**
+- **Lần đăng nhập đầu tiên**, hệ thống **bắt buộc** cán bộ đổi mật khẩu tạm sang mật khẩu riêng.
+- Trong app có nút **🔑 Đổi mật khẩu** ở góc trên để đổi bất cứ lúc nào.
+- Màn đăng nhập có **Quên mật khẩu?** → nhập email → nhận liên kết đặt lại qua email.
+
+> Để **Quên mật khẩu** gửi được email: vào **Authentication → URL Configuration**,
+> thêm địa chỉ web (ví dụ `https://...netlify.app`) vào **Site URL** và **Redirect URLs**.
+> Gói miễn phí giới hạn số email/giờ và dùng người gửi mặc định của Supabase; nếu
+> phòng gửi nhiều, cấu hình SMTP riêng trong **Authentication → Emails**.
 
 ---
 

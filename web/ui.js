@@ -807,41 +807,131 @@ function suaHoSo(rowNum){
 }
 function showMsg(t,cls){ var m=document.getElementById('msg'); m.textContent=t; m.className='msg '+cls; if(cls==='ok') setTimeout(function(){ m.className='msg'; },4000); }
 
-/* ====================== ĐĂNG NHẬP / ĐĂNG XUẤT ====================== */
-async function dangNhap(ev){
-  if(ev) ev.preventDefault();
-  var email=document.getElementById('dnEmail').value.trim();
-  var mk=document.getElementById('dnMatKhau').value;
-  var loi=document.getElementById('dnLoi');
-  if(!email||!mk){ loi.textContent='Nhập đủ email và mật khẩu.'; loi.style.display='block'; return; }
-  loi.style.display='none';
-  document.getElementById('btnDangNhap').disabled=true;
-  var {data,error}=await SB.auth.signInWithPassword({email:email, password:mk});
-  document.getElementById('btnDangNhap').disabled=false;
-  if(error){ loi.textContent='Đăng nhập không thành công: '+error.message; loi.style.display='block'; return; }
-  USER.email=(data.user&&data.user.email)||email;
-  hienApp();
+/* ====================== ĐĂNG NHẬP / ĐỔI - QUÊN MẬT KHẨU ====================== */
+var PANELS=['panelDangNhap','panelQuenMK','panelDoiMKLanDau','panelDatLaiMK'];
+// Hiện thông báo trong một hộp .dn-msg
+function dnMsg(id, text, cls){
+  var e=document.getElementById(id); if(!e) return;
+  if(!text){ e.className='dn-msg'; e.textContent=''; return; }
+  e.textContent=text; e.className='dn-msg '+(cls||'err')+' show';
 }
-async function dangXuat(){
-  await SB.auth.signOut();
-  location.reload();
+// Chuyển giữa các bước trên màn đăng nhập
+function hienPanel(id){
+  PANELS.forEach(function(p){ var e=document.getElementById(p); if(e) e.style.display=(p===id?'block':'none'); });
+  ['dnLoi','qmkMsg','ldMsg','dlMsg'].forEach(function(m){ var e=document.getElementById(m); if(e) e.className='dn-msg'; });
+}
+function moManDangNhap(){
+  document.getElementById('manHinhDangNhap').style.display='flex';
+  document.getElementById('appChinh').style.display='none';
+  document.getElementById('btnDangXuat').style.display='none';
+  var b=document.getElementById('btnDoiMK'); if(b) b.style.display='none';
 }
 function hienApp(){
   document.getElementById('manHinhDangNhap').style.display='none';
   document.getElementById('appChinh').style.display='block';
   document.getElementById('btnDangXuat').style.display='inline-block';
+  var b=document.getElementById('btnDoiMK'); if(b) b.style.display='inline-block';
+  // Dọn token khôi phục trên URL (nếu có) để tải lại trang không lặp lại
+  if(location.hash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
   khoiDongApp();
 }
-function hienDangNhap(){
-  document.getElementById('manHinhDangNhap').style.display='flex';
-  document.getElementById('appChinh').style.display='none';
-  document.getElementById('btnDangXuat').style.display='none';
+// Kiểm tra mật khẩu mới hợp lệ. Trả về chuỗi lỗi hoặc '' nếu OK.
+function kiemMKMoi(mk1, mk2){
+  if(!mk1 || mk1.length<6) return 'Mật khẩu phải có ít nhất 6 ký tự.';
+  if(mk1!==mk2) return 'Hai lần nhập mật khẩu chưa khớp nhau.';
+  return '';
 }
-// Khi mở trang: kiểm tra đã đăng nhập chưa
-document.addEventListener('DOMContentLoaded', async function(){
-  try{
-    var {data}=await SB.auth.getSession();
-    if(data && data.session && data.session.user){ USER.email=data.session.user.email; hienApp(); }
-    else hienDangNhap();
-  }catch(e){ hienDangNhap(); }
+
+async function dangNhap(ev){
+  if(ev) ev.preventDefault();
+  var email=document.getElementById('dnEmail').value.trim();
+  var mk=document.getElementById('dnMatKhau').value;
+  if(!email||!mk){ dnMsg('dnLoi','Nhập đủ email và mật khẩu.'); return; }
+  dnMsg('dnLoi','');
+  document.getElementById('btnDangNhap').disabled=true;
+  var {data,error}=await SB.auth.signInWithPassword({email:email, password:mk});
+  document.getElementById('btnDangNhap').disabled=false;
+  if(error){ dnMsg('dnLoi','Đăng nhập không thành công: '+error.message); return; }
+  USER.email=(data.user&&data.user.email)||email;
+  // Lần đầu (chưa từng đổi mật khẩu) -> buộc đổi
+  if(!((data.user&&data.user.user_metadata||{}).da_doi_mk)){ hienPanel('panelDoiMKLanDau'); }
+  else hienApp();
+}
+
+// Quên mật khẩu: gửi email chứa liên kết đặt lại
+async function guiQuenMK(ev){
+  if(ev) ev.preventDefault();
+  var email=document.getElementById('qmkEmail').value.trim();
+  if(!email){ dnMsg('qmkMsg','Nhập email công vụ của bạn.'); return; }
+  document.getElementById('btnGuiQuenMK').disabled=true;
+  var redirectTo=location.origin+location.pathname;
+  var {error}=await SB.auth.resetPasswordForEmail(email, {redirectTo:redirectTo});
+  document.getElementById('btnGuiQuenMK').disabled=false;
+  if(error){ dnMsg('qmkMsg','Không gửi được: '+error.message); return; }
+  dnMsg('qmkMsg','Đã gửi email đặt lại mật khẩu tới '+email+' (nếu email có trong hệ thống). '+
+        'Mở email, bấm liên kết để đặt mật khẩu mới. Kiểm tra cả hộp thư Spam.','ok');
+}
+
+// Đổi mật khẩu lần đầu (bắt buộc)
+async function doiMKLanDau(ev){
+  if(ev) ev.preventDefault();
+  var loi=kiemMKMoi(document.getElementById('ldMK1').value, document.getElementById('ldMK2').value);
+  if(loi){ dnMsg('ldMsg',loi); return; }
+  document.getElementById('btnDoiMKLanDau').disabled=true;
+  var {error}=await SB.auth.updateUser({password:document.getElementById('ldMK1').value, data:{da_doi_mk:true}});
+  document.getElementById('btnDoiMKLanDau').disabled=false;
+  if(error){ dnMsg('ldMsg','Không đổi được mật khẩu: '+error.message); return; }
+  hienApp();
+}
+
+// Đặt lại mật khẩu từ liên kết email
+async function datLaiMK(ev){
+  if(ev) ev.preventDefault();
+  var loi=kiemMKMoi(document.getElementById('dlMK1').value, document.getElementById('dlMK2').value);
+  if(loi){ dnMsg('dlMsg',loi); return; }
+  document.getElementById('btnDatLaiMK').disabled=true;
+  var {data,error}=await SB.auth.updateUser({password:document.getElementById('dlMK1').value, data:{da_doi_mk:true}});
+  document.getElementById('btnDatLaiMK').disabled=false;
+  if(error){ dnMsg('dlMsg','Không đặt lại được: '+error.message+' (Liên kết có thể đã hết hạn — hãy gửi lại.)'); return; }
+  if(data && data.user) USER.email=data.user.email;
+  hienApp();
+}
+
+async function dangXuat(){ await SB.auth.signOut(); location.reload(); }
+
+// Đổi mật khẩu trong app (đã đăng nhập)
+function moDoiMK(){
+  document.getElementById('dmMK1').value='';
+  document.getElementById('dmMK2').value='';
+  dnMsg('dmMsg','');
+  document.getElementById('modalDoiMK').style.display='flex';
+}
+function dongDoiMK(){ document.getElementById('modalDoiMK').style.display='none'; }
+async function doiMKTrongApp(ev){
+  if(ev) ev.preventDefault();
+  var loi=kiemMKMoi(document.getElementById('dmMK1').value, document.getElementById('dmMK2').value);
+  if(loi){ dnMsg('dmMsg',loi); return; }
+  document.getElementById('btnDoiMKApp').disabled=true;
+  var {error}=await SB.auth.updateUser({password:document.getElementById('dmMK1').value, data:{da_doi_mk:true}});
+  document.getElementById('btnDoiMKApp').disabled=false;
+  if(error){ dnMsg('dmMsg','Không đổi được mật khẩu: '+error.message); return; }
+  dongDoiMK();
+  showMsg('✓ Đã đổi mật khẩu thành công.','ok');
+}
+
+// Khi mở trang: xử lý liên kết khôi phục, hoặc kiểm tra phiên đăng nhập
+document.addEventListener('DOMContentLoaded', function(){
+  var laKhoiPhuc=/type=recovery/.test(location.hash||'');
+  SB.auth.onAuthStateChange(function(event){
+    if(event==='PASSWORD_RECOVERY'){ moManDangNhap(); hienPanel('panelDatLaiMK'); }
+  });
+  if(laKhoiPhuc){ moManDangNhap(); hienPanel('panelDatLaiMK'); return; }
+  SB.auth.getSession().then(function(res){
+    var s=res.data && res.data.session;
+    if(s && s.user){
+      USER.email=s.user.email;
+      if(!((s.user.user_metadata||{}).da_doi_mk)){ moManDangNhap(); hienPanel('panelDoiMKLanDau'); }
+      else hienApp();
+    } else { moManDangNhap(); hienPanel('panelDangNhap'); }
+  }).catch(function(){ moManDangNhap(); hienPanel('panelDangNhap'); });
 });
