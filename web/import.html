@@ -136,9 +136,11 @@ function docFile(){
   var reader=new FileReader();
   reader.onload=function(e){
     try{
-      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      // raw:true -> lấy ĐÚNG giá trị số (tránh số lớn bị đổi sang ký hiệu khoa học
+      // rồi cắt mất phần mũ). cellDates:true -> ô ngày thành đối tượng Date chuẩn.
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
       var ws=wb.Sheets[wb.SheetNames[0]];
-      var grid=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+      var grid=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
       if(bang==='ho_so') chuyenHoSo(grid);
       else chuyenTheoTuKhoa(grid, bang, bang==='vpdt'?TUKHOA_VPDT:TUKHOA_NNT);
     }catch(ex){ msg('Lỗi đọc file: '+ex.message,'err'); }

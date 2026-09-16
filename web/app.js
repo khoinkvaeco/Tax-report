@@ -249,7 +249,10 @@ function extractRow_local(line, cells){
 
 /* ====================== C. CHUYỂN ĐỔI DB <-> BẢN GHI ====================== */
 function toInt(v){
-  var s=String(v==null?'':v).replace(/[^\d-]/g,'');
+  if(typeof v==='number') return isNaN(v)?null:Math.round(v);   // đọc thẳng số từ Excel
+  var s=String(v==null?'':v).trim();
+  if(s==='') return null;
+  s=s.replace(/[^\d-]/g,'');   // bỏ dấu phân cách nghìn (. hoặc ,)
   if(s==='' || s==='-') return null;
   var n=parseInt(s,10); return isNaN(n)?null:n;
 }
