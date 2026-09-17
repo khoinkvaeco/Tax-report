@@ -129,9 +129,9 @@ function normDateVN(v){
     return pad2(v.getDate())+'/'+pad2(v.getMonth()+1)+'/'+v.getFullYear();
   }
   var s=String(v).trim();
-  var iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);           // YYYY-MM-DD
+  var iso=s.match(/(\d{4})-(\d{2})-(\d{2})/);             // YYYY-MM-DD (kể cả kèm giờ)
   if(iso) return iso[3]+'/'+iso[2]+'/'+iso[1];
-  var vn=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);      // d/m/yyyy
+  var vn=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);        // d/m/yyyy (kể cả kèm giờ)
   if(vn) return pad2(vn[1])+'/'+pad2(vn[2])+'/'+vn[3];
   return s;
 }

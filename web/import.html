@@ -107,8 +107,13 @@ function cleanMST(v){
 // Bản đồ nhãn (tiếng Việt) -> tên cột, cho bảng ho_so
 function banDoHoSo(){
   var m={};
-  COLUMNS.forEach(function(c){ if(c.group!=='_') m[chuan(c.label)]=c.key; });
+  COLUMNS.forEach(function(c){
+    if(c.group==='_') return;
+    m[chuan(c.label)]=c.key;
+    m[chuan(c.label).replace(/\s+/g,'')]=c.key;   // bản bỏ hết khoảng trắng (dự phòng lệch khoảng trắng)
+  });
   m[chuan('Người nhập (email)')]='nguoinhap';   // cột hệ thống cũ
+  m['ngườinhập(email)']='nguoinhap';
   return m;
 }
 // Với vpdt / ds_nnt: khớp theo từ khóa trong tiêu đề
@@ -157,8 +162,8 @@ function chuyenHoSo(grid){
   var colIdx={};           // key -> chỉ số cột trong file
   var khop=0; CANH_BAO_HEADER=[];
   header.forEach(function(h,i){
-    if(chuan('Ngày cập nhật')===h) return;         // bỏ, để trigger tự đặt
-    var key=bando[h];
+    if(chuan('Ngày cập nhật')===h || h.replace(/\s+/g,'')==='ngàycậpnhật') return;  // bỏ, để trigger tự đặt
+    var key=bando[h] || bando[h.replace(/\s+/g,'')];   // khớp cả khi lệch khoảng trắng
     if(key){ colIdx[key]=i; khop++; }
     else if(h) CANH_BAO_HEADER.push(grid[0][i]);
   });
